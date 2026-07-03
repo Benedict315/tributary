@@ -165,6 +165,19 @@ select.kind {
   color: var(--accent);
 }
 
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.check input {
+  width: auto;
+}
+
 .preview {
   list-style: none;
   padding: 8px 0;

@@ -18,6 +18,7 @@ export default function CreateSplit({
     { kind: "address", value: "", percent: "60" },
     { kind: "address", value: "", percent: "40" },
   ]);
+  const [editable, setEditable] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -39,7 +40,7 @@ export default function CreateSplit({
         creator: wallet,
         recipients: rows.map(toRecipient),
         shares: toShares(rows),
-        controller: undefined,
+        controller: editable ? wallet : undefined,
       });
       const { result } = await tx.signAndSend();
       setMessage(
@@ -59,6 +60,14 @@ export default function CreateSplit({
     <section className="card">
       <h2>Create a split</h2>
       <RecipientEditor rows={rows} onChange={setRows} />
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={editable}
+          onChange={(e) => setEditable(e.target.checked)}
+        />
+        I can edit this split later (uncheck to lock it forever)
+      </label>
       <button disabled={busy} onClick={submit}>
         {busy ? "Waiting for signature…" : "Create split"}
       </button>
