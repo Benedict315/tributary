@@ -280,6 +280,36 @@ fn controller_can_update_mutable_split() {
 }
 
 #[test]
+fn control_can_be_transferred_and_renounced() {
+    let s = setup();
+    let creator = Address::generate(&s.env);
+    let controller = Address::generate(&s.env);
+    let next = Address::generate(&s.env);
+    let a = Address::generate(&s.env);
+
+    let id = s.client.create_split(
+        &creator,
+        &vec![&s.env, a.clone()],
+        &vec![&s.env, 10_000],
+        &Some(controller.clone()),
+    );
+
+    s.client.transfer_control(&id, &Some(next.clone()));
+    assert_eq!(s.client.get_split(&id).controller, Some(next));
+
+    s.client.transfer_control(&id, &None);
+    assert_eq!(s.client.get_split(&id).controller, None);
+
+    let update = s
+        .client
+        .try_update_split(&id, &vec![&s.env, a], &vec![&s.env, 10_000]);
+    assert_eq!(update, Err(Ok(Error::SplitImmutable)));
+
+    let transfer = s.client.try_transfer_control(&id, &None);
+    assert_eq!(transfer, Err(Ok(Error::SplitImmutable)));
+}
+
+#[test]
 fn immutable_split_cannot_be_updated() {
     let s = setup();
     let creator = Address::generate(&s.env);

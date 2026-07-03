@@ -64,6 +64,14 @@ pub struct SplitUpdated {
 
 #[contractevent]
 #[derive(Clone)]
+pub struct ControlTransferred {
+    #[topic]
+    pub id: u64,
+    pub new_controller: Option<Address>,
+}
+
+#[contractevent]
+#[derive(Clone)]
 pub struct Deposited {
     #[topic]
     pub id: u64,
@@ -144,6 +152,22 @@ impl Splitter {
         split.shares = shares;
         env.storage().persistent().set(&DataKey::Split(id), &split);
         SplitUpdated { id }.publish(&env);
+        Ok(())
+    }
+
+    /// Hands control of a mutable split to another address, or locks it
+    /// forever when the new controller is None.
+    pub fn transfer_control(
+        env: Env,
+        id: u64,
+        new_controller: Option<Address>,
+    ) -> Result<(), Error> {
+        let mut split = load(&env, id)?;
+        let controller = split.controller.clone().ok_or(Error::SplitImmutable)?;
+        controller.require_auth();
+        split.controller = new_controller.clone();
+        env.storage().persistent().set(&DataKey::Split(id), &split);
+        ControlTransferred { id, new_controller }.publish(&env);
         Ok(())
     }
 
