@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { walletClient } from "../lib/tributary";
+import { walletClient, Recipient } from "../lib/tributary";
 
 interface Row {
-  address: string;
+  kind: "address" | "split";
+  value: string;
   percent: string;
 }
 
@@ -14,8 +15,8 @@ export default function CreateSplit({
   onCreated: () => void;
 }) {
   const [rows, setRows] = useState<Row[]>([
-    { address: "", percent: "60" },
-    { address: "", percent: "40" },
+    { kind: "address", value: "", percent: "60" },
+    { kind: "address", value: "", percent: "40" },
   ]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -25,6 +26,12 @@ export default function CreateSplit({
   }
 
   const total = rows.reduce((sum, r) => sum + (parseFloat(r.percent) || 0), 0);
+
+  function toRecipient(row: Row): Recipient {
+    return row.kind === "address"
+      ? { tag: "Account", values: [row.value.trim()] }
+      : { tag: "Split", values: [BigInt(row.value)] };
+  }
 
   async function submit() {
     if (!wallet) {
@@ -41,7 +48,7 @@ export default function CreateSplit({
       const client = walletClient(wallet);
       const tx = await client.create_split({
         creator: wallet,
-        recipients: rows.map((r) => r.address.trim()),
+        recipients: rows.map(toRecipient),
         shares: rows.map((r) => Math.round(parseFloat(r.percent) * 100)),
         controller: undefined,
       });
@@ -64,10 +71,20 @@ export default function CreateSplit({
       <h2>Create a split</h2>
       {rows.map((row, i) => (
         <div className="row" key={i}>
+          <select
+            className="kind"
+            value={row.kind}
+            onChange={(e) =>
+              setRow(i, { kind: e.target.value as Row["kind"], value: "" })
+            }
+          >
+            <option value="address">Address</option>
+            <option value="split">Split</option>
+          </select>
           <input
-            placeholder="G… recipient address"
-            value={row.address}
-            onChange={(e) => setRow(i, { address: e.target.value })}
+            placeholder={row.kind === "address" ? "G… recipient address" : "Split id"}
+            value={row.value}
+            onChange={(e) => setRow(i, { value: e.target.value })}
           />
           <input
             className="pct"
@@ -92,7 +109,9 @@ export default function CreateSplit({
       <div className="row actions">
         <button
           className="ghost"
-          onClick={() => setRows([...rows, { address: "", percent: "" }])}
+          onClick={() =>
+            setRows([...rows, { kind: "address", value: "", percent: "" }])
+          }
         >
           Add recipient
         </button>

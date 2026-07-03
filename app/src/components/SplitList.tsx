@@ -1,4 +1,4 @@
-import { shortAddress, SplitView, EXPLORER } from "../lib/tributary";
+import { recipientLabel, SplitView, EXPLORER } from "../lib/tributary";
 
 export default function SplitList({
   splits,
@@ -24,10 +24,18 @@ export default function SplitList({
             </div>
             <ul>
               {s.recipients.map((r, i) => (
-                <li key={r + i}>
-                  <a href={`${EXPLORER}/account/${r}`} target="_blank" rel="noreferrer">
-                    {shortAddress(r)}
-                  </a>
+                <li key={i}>
+                  {r.tag === "Account" ? (
+                    <a
+                      href={`${EXPLORER}/account/${r.values[0]}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {recipientLabel(r)}
+                    </a>
+                  ) : (
+                    <span className="nested">{recipientLabel(r)}</span>
+                  )}
                   <span>{(s.shares[i] / 100).toFixed(2).replace(/\.?0+$/, "")}%</span>
                 </li>
               ))}

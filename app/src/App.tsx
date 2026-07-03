@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { connectWallet, fetchSplits, shortAddress, SplitView } from "./lib/tributary";
+import {
+  connectWallet,
+  fetchSplits,
+  shortAddress,
+  SplitView,
+  CONTRACT_ID,
+  EXPLORER,
+} from "./lib/tributary";
 import CreateSplit from "./components/CreateSplit";
 import PaySplit from "./components/PaySplit";
 import EscrowCard from "./components/EscrowCard";
@@ -80,9 +87,7 @@ export default function App() {
 
       <footer>
         <span>Apache-2.0</span>
-        <a href="https://stellar.expert/explorer/testnet/contract/CDRW277JGRE32EADYKFXOMQILFEAWRTQ5PK62M4HOHB4LQA4BUQWPLX5">
-          Contract on testnet
-        </a>
+        <a href={`${EXPLORER}/contract/${CONTRACT_ID}`}>Contract on testnet</a>
         <a href="https://github.com/tributary-protocol/tributary">
           tributary-protocol/tributary
         </a>
