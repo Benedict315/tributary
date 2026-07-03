@@ -12,6 +12,7 @@ import PaySplit from "./components/PaySplit";
 import EscrowCard from "./components/EscrowCard";
 import SplitList from "./components/SplitList";
 import Activity from "./components/Activity";
+import ManageSplit from "./components/ManageSplit";
 
 export default function App() {
   const [wallet, setWallet] = useState<string | null>(null);
@@ -76,6 +77,7 @@ export default function App() {
           <CreateSplit wallet={wallet} onCreated={refresh} />
           <PaySplit wallet={wallet} splits={splits} onPaid={refresh} />
           <EscrowCard wallet={wallet} splits={splits} />
+          <ManageSplit wallet={wallet} splits={splits} onChanged={refresh} />
         </div>
 
         <div className="list-head">
