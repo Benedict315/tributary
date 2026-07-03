@@ -8,6 +8,7 @@ import {
   TOKENS,
   SplitView,
 } from "../lib/tributary";
+import TokenPicker from "./TokenPicker";
 
 export default function PaySplit({
   wallet,
@@ -96,19 +97,7 @@ export default function PaySplit({
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
         />
-        <select
-          className="kind"
-          value={token.code}
-          onChange={(e) =>
-            setToken(TOKENS.find((t) => t.code === e.target.value) ?? TOKENS[0])
-          }
-        >
-          {TOKENS.map((t) => (
-            <option key={t.code} value={t.code}>
-              {t.code}
-            </option>
-          ))}
-        </select>
+        <TokenPicker token={token} onChange={setToken} />
       </div>
       {selected && preview.length === selected.recipients.length && (
         <ul className="preview">
