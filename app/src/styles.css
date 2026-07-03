@@ -170,6 +170,12 @@ input.pct {
   color: var(--accent);
 }
 
+.hint {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
 .note {
   margin-top: 10px;
   font-size: 13px;

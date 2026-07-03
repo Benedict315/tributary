@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { connectWallet, fetchSplits, shortAddress, SplitView } from "./lib/tributary";
 import CreateSplit from "./components/CreateSplit";
 import PaySplit from "./components/PaySplit";
+import EscrowCard from "./components/EscrowCard";
 import SplitList from "./components/SplitList";
 
 export default function App() {
@@ -66,6 +67,7 @@ export default function App() {
         <div className="columns">
           <CreateSplit wallet={wallet} onCreated={refresh} />
           <PaySplit wallet={wallet} splits={splits} onPaid={refresh} />
+          <EscrowCard wallet={wallet} splits={splits} />
         </div>
 
         <SplitList splits={splits} loading={loading} />
