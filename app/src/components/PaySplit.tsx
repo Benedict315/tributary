@@ -1,5 +1,13 @@
-import { useState } from "react";
-import { walletClient, toStroops, XLM_SAC, SplitView } from "../lib/tributary";
+import { useEffect, useState } from "react";
+import {
+  walletClient,
+  toStroops,
+  fromStroops,
+  previewPayout,
+  recipientLabel,
+  XLM_SAC,
+  SplitView,
+} from "../lib/tributary";
 
 export default function PaySplit({
   wallet,
@@ -12,8 +20,25 @@ export default function PaySplit({
 }) {
   const [splitId, setSplitId] = useState("");
   const [amount, setAmount] = useState("");
+  const [preview, setPreview] = useState<bigint[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const selected = splits.find((s) => String(s.id) === splitId);
+
+  useEffect(() => {
+    let active = true;
+    if (splitId === "" || !amount || parseFloat(amount) <= 0) {
+      setPreview([]);
+      return;
+    }
+    previewPayout(BigInt(splitId), toStroops(amount)).then((parts) => {
+      if (active) setPreview(parts);
+    });
+    return () => {
+      active = false;
+    };
+  }, [splitId, amount]);
 
   async function submit() {
     if (!wallet) {
@@ -70,6 +95,16 @@ export default function PaySplit({
         />
         <span className="unit">XLM</span>
       </div>
+      {selected && preview.length === selected.recipients.length && (
+        <ul className="preview">
+          {selected.recipients.map((r, i) => (
+            <li key={i}>
+              <span>{recipientLabel(r)}</span>
+              <span>{fromStroops(preview[i])} XLM</span>
+            </li>
+          ))}
+        </ul>
+      )}
       <button disabled={busy} onClick={submit}>
         {busy ? "Waiting for signature…" : "Pay"}
       </button>
