@@ -42,6 +42,18 @@ export default function CreateSplit({
       setMessage("Shares must add up to 100%.");
       return;
     }
+    if (rows.some((r) => r.value.trim() === "")) {
+      setMessage("Every recipient needs an address or split id.");
+      return;
+    }
+    if (
+      rows.some(
+        (r) => r.kind === "address" && !/^G[A-Z2-7]{55}$/.test(r.value.trim()),
+      )
+    ) {
+      setMessage("Recipient addresses must be G… account keys.");
+      return;
+    }
     setBusy(true);
     setMessage(null);
     try {
