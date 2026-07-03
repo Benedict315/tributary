@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { fetchActivity, fromStroops, ActivityItem, EXPLORER } from "../lib/tributary";
+import { AnimatePresence, motion } from "motion/react";
+import { fromStroops, tokenCode, ActivityItem, EXPLORER } from "../lib/tributary";
 
 const LABELS: Record<string, string> = {
   split_created: "created",
@@ -10,39 +10,45 @@ const LABELS: Record<string, string> = {
   control_transferred: "control moved",
 };
 
-export default function Activity() {
-  const [items, setItems] = useState<ActivityItem[]>([]);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    fetchActivity()
-      .then(setItems)
-      .finally(() => setLoaded(true));
-  }, []);
-
-  if (!loaded || items.length === 0) return null;
+export default function Activity({ items }: { items: ActivityItem[] }) {
+  if (items.length === 0) return null;
 
   return (
-    <section className="activity">
+    <motion.section
+      className="activity"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5, delay: 0.2 }}
+    >
       <h2>Recent activity</h2>
       <ul>
-        {items.map((item, i) => (
-          <li key={item.txHash + i}>
-            <span className="badge">{LABELS[item.type] ?? item.type}</span>
-            <span>
-              {item.id !== undefined && `split #${String(item.id)}`}
-              {item.amount !== undefined && ` · ${fromStroops(item.amount)} XLM`}
-            </span>
-            <a
-              href={`${EXPLORER}/tx/${item.txHash}`}
-              target="_blank"
-              rel="noreferrer"
+        <AnimatePresence initial={false}>
+          {items.map((item) => (
+            <motion.li
+              key={item.txHash + item.type + String(item.id)}
+              layout
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
             >
-              tx
-            </a>
-          </li>
-        ))}
+              <span className="badge">{LABELS[item.type] ?? item.type}</span>
+              <span>
+                {item.id !== undefined && `split #${String(item.id)}`}
+                {item.amount !== undefined &&
+                  ` · ${fromStroops(item.amount)} ${tokenCode(item.token)}`}
+              </span>
+              <a
+                href={`${EXPLORER}/tx/${item.txHash}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                tx
+              </a>
+            </motion.li>
+          ))}
+        </AnimatePresence>
       </ul>
-    </section>
+    </motion.section>
   );
 }

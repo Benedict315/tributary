@@ -106,8 +106,14 @@ export interface ActivityItem {
   type: string;
   id: bigint | undefined;
   amount: bigint | undefined;
+  token: string | undefined;
   ledger: number;
   txHash: string;
+}
+
+export function tokenCode(contract: string | undefined): string {
+  if (!contract) return "";
+  return TOKENS.find((t) => t.contract === contract)?.code ?? shortAddress(contract);
 }
 
 export async function fetchActivity(limit = 12): Promise<ActivityItem[]> {
@@ -134,12 +140,16 @@ export async function fetchActivity(limit = 12): Promise<ActivityItem[]> {
     let type: unknown;
     let id: unknown;
     let amount: bigint | undefined;
+    let token: string | undefined;
     try {
       type = scValToNative(ev.topic[0]);
       id = ev.topic.length > 1 ? scValToNative(ev.topic[1]) : undefined;
       const data = scValToNative(ev.value);
       if (data && typeof data === "object" && "amount" in data) {
         amount = data.amount as bigint;
+      }
+      if (data && typeof data === "object" && "token" in data) {
+        token = data.token as string;
       }
     } catch {
       continue;
@@ -149,6 +159,7 @@ export async function fetchActivity(limit = 12): Promise<ActivityItem[]> {
       type,
       id: typeof id === "bigint" ? id : undefined,
       amount,
+      token,
       ledger: ev.ledger,
       txHash: ev.txHash,
     });
