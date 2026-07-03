@@ -34,7 +34,7 @@ if (typeof window !== "undefined") {
 export const networks = {
   testnet: {
     networkPassphrase: "Test SDF Network ; September 2015",
-    contractId: "CDRW277JGRE32EADYKFXOMQILFEAWRTQ5PK62M4HOHB4LQA4BUQWPLX5",
+    contractId: "CD72QCORFZPWSIHYBPMFJ42MGMESYZ2X5NXIMUT2RAC7TVXUJVVVAFFL",
   }
 } as const
 
@@ -47,15 +47,18 @@ export const Errors = {
   6: {message:"SplitImmutable"},
   7: {message:"InvalidAmount"},
   8: {message:"NothingToDistribute"},
-  9: {message:"TooManyRecipients"}
+  9: {message:"TooManyRecipients"},
+  10: {message:"BadChildSplit"}
 }
 
 
 export interface Split {
   controller: Option<string>;
-  recipients: Array<string>;
+  recipients: Array<Recipient>;
   shares: Array<u32>;
 }
+
+export type Recipient = {tag: "Account", values: readonly [string]} | {tag: "Split", values: readonly [u64]};
 
 
 
@@ -112,13 +115,20 @@ export interface Client {
    * and must sum to exactly 10_000. Passing a controller makes the
    * split mutable by that address; passing None locks it forever.
    */
-  create_split: ({creator, recipients, shares, controller}: {creator: string, recipients: Array<string>, shares: Array<u32>, controller: Option<string>}, options?: MethodOptions) => Promise<AssembledTransaction<Result<u64>>>
+  create_split: ({creator, recipients, shares, controller}: {creator: string, recipients: Array<Recipient>, shares: Array<u32>, controller: Option<string>}, options?: MethodOptions) => Promise<AssembledTransaction<Result<u64>>>
 
   /**
    * Construct and simulate a update_split transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Replaces the recipients and shares of a mutable split.
    */
-  update_split: ({id, recipients, shares}: {id: u64, recipients: Array<string>, shares: Array<u32>}, options?: MethodOptions) => Promise<AssembledTransaction<Result<void>>>
+  update_split: ({id, recipients, shares}: {id: u64, recipients: Array<Recipient>, shares: Array<u32>}, options?: MethodOptions) => Promise<AssembledTransaction<Result<void>>>
+
+  /**
+   * Construct and simulate a preview_payout transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Returns the exact per-recipient amounts a payment of `amount` would
+   * produce, without moving any funds.
+   */
+  preview_payout: ({id, amount}: {id: u64, amount: i128}, options?: MethodOptions) => Promise<AssembledTransaction<Result<Array<i128>>>>
 
   /**
    * Construct and simulate a transfer_control transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -145,9 +155,10 @@ export class Client extends ContractClient {
   }
   constructor(public readonly options: ContractClientOptions) {
     super(
-      new ContractSpec([ "AAAABAAAAAAAAAAAAAAABUVycm9yAAAAAAAACQAAAAAAAAAMTm9SZWNpcGllbnRzAAAAAQAAAAAAAAAOTGVuZ3RoTWlzbWF0Y2gAAAAAAAIAAAAAAAAACVplcm9TaGFyZQAAAAAAAAMAAAAAAAAADUJhZFNoYXJlVG90YWwAAAAAAAAEAAAAAAAAAA1TcGxpdE5vdEZvdW5kAAAAAAAABQAAAAAAAAAOU3BsaXRJbW11dGFibGUAAAAAAAYAAAAAAAAADUludmFsaWRBbW91bnQAAAAAAAAHAAAAAAAAABNOb3RoaW5nVG9EaXN0cmlidXRlAAAAAAgAAAAAAAAAEVRvb01hbnlSZWNpcGllbnRzAAAAAAAACQ==",
-        "AAAAAQAAAAAAAAAAAAAABVNwbGl0AAAAAAAAAwAAAAAAAAAKY29udHJvbGxlcgAAAAAD6AAAABMAAAAAAAAACnJlY2lwaWVudHMAAAAAA+oAAAATAAAAAAAAAAZzaGFyZXMAAAAAA+oAAAAE",
+      new ContractSpec([ "AAAABAAAAAAAAAAAAAAABUVycm9yAAAAAAAACgAAAAAAAAAMTm9SZWNpcGllbnRzAAAAAQAAAAAAAAAOTGVuZ3RoTWlzbWF0Y2gAAAAAAAIAAAAAAAAACVplcm9TaGFyZQAAAAAAAAMAAAAAAAAADUJhZFNoYXJlVG90YWwAAAAAAAAEAAAAAAAAAA1TcGxpdE5vdEZvdW5kAAAAAAAABQAAAAAAAAAOU3BsaXRJbW11dGFibGUAAAAAAAYAAAAAAAAADUludmFsaWRBbW91bnQAAAAAAAAHAAAAAAAAABNOb3RoaW5nVG9EaXN0cmlidXRlAAAAAAgAAAAAAAAAEVRvb01hbnlSZWNpcGllbnRzAAAAAAAACQAAAAAAAAANQmFkQ2hpbGRTcGxpdAAAAAAAAAo=",
+        "AAAAAQAAAAAAAAAAAAAABVNwbGl0AAAAAAAAAwAAAAAAAAAKY29udHJvbGxlcgAAAAAD6AAAABMAAAAAAAAACnJlY2lwaWVudHMAAAAAA+oAAAfQAAAACVJlY2lwaWVudAAAAAAAAAAAAAAGc2hhcmVzAAAAAAPqAAAABA==",
         "AAAAAAAAAH9Nb3ZlcyBgYW1vdW50YCBvZiBgdG9rZW5gIGZyb20gdGhlIHBheWVyIHRvIGV2ZXJ5IHJlY2lwaWVudCBvZiB0aGUKc3BsaXQgaW4gb25lIGNhbGwuIFJvdW5kaW5nIGR1c3QgZ29lcyB0byB0aGUgbGFzdCByZWNpcGllbnQuAAAAAANwYXkAAAAABAAAAAAAAAAEZnJvbQAAABMAAAAAAAAAAmlkAAAAAAAGAAAAAAAAAAV0b2tlbgAAAAAAABMAAAAAAAAABmFtb3VudAAAAAAACwAAAAEAAAPpAAAAAgAAAAM=",
+        "AAAAAgAAAAAAAAAAAAAACVJlY2lwaWVudAAAAAAAAAIAAAABAAAAAAAAAAdBY2NvdW50AAAAAAEAAAATAAAAAQAAAAAAAAAFU3BsaXQAAAAAAAABAAAABg==",
         "AAAAAAAAAAAAAAAHYmFsYW5jZQAAAAACAAAAAAAAAAJpZAAAAAAABgAAAAAAAAAFdG9rZW4AAAAAAAATAAAAAQAAAAs=",
         "AAAAAAAAAJVNb3ZlcyBmdW5kcyBpbnRvIHRoZSBjb250cmFjdCBhbmQgY3JlZGl0cyB0aGVtIHRvIHRoZSBzcGxpdCB3aXRob3V0CnBheWluZyBhbnlvbmUgeWV0LiBVc2VmdWwgd2hlbiBtb25leSBhcnJpdmVzIGJlZm9yZSBhIGRpc3RyaWJ1dGlvbgpzaG91bGQgaGFwcGVuLgAAAAAAAAdkZXBvc2l0AAAAAAQAAAAAAAAABGZyb20AAAATAAAAAAAAAAJpZAAAAAAABgAAAAAAAAAFdG9rZW4AAAAAAAATAAAAAAAAAAZhbW91bnQAAAAAAAsAAAABAAAD6QAAAAIAAAAD",
         "AAAABQAAAAAAAAAAAAAACURlcG9zaXRlZAAAAAAAAAEAAAAJZGVwb3NpdGVkAAAAAAAAAwAAAAAAAAACaWQAAAAAAAYAAAABAAAAAAAAAAV0b2tlbgAAAAAAABMAAAAAAAAAAAAAAAZhbW91bnQAAAAAAAsAAAAAAAAAAg==",
@@ -159,8 +170,9 @@ export class Client extends ContractClient {
         "AAAABQAAAAAAAAAAAAAADFNwbGl0Q3JlYXRlZAAAAAEAAAANc3BsaXRfY3JlYXRlZAAAAAAAAAIAAAAAAAAAAmlkAAAAAAAGAAAAAQAAAAAAAAAHY3JlYXRvcgAAAAATAAAAAAAAAAI=",
         "AAAABQAAAAAAAAAAAAAADFNwbGl0VXBkYXRlZAAAAAEAAAANc3BsaXRfdXBkYXRlZAAAAAAAAAEAAAAAAAAAAmlkAAAAAAAGAAAAAQAAAAI=",
         "AAAAAAAAAAAAAAALc3BsaXRfY291bnQAAAAAAAAAAAEAAAAG",
-        "AAAAAAAAAL5SZWdpc3RlcnMgYSBuZXcgc3BsaXQgYW5kIHJldHVybnMgaXRzIGlkLiBTaGFyZXMgYXJlIGJhc2lzIHBvaW50cwphbmQgbXVzdCBzdW0gdG8gZXhhY3RseSAxMF8wMDAuIFBhc3NpbmcgYSBjb250cm9sbGVyIG1ha2VzIHRoZQpzcGxpdCBtdXRhYmxlIGJ5IHRoYXQgYWRkcmVzczsgcGFzc2luZyBOb25lIGxvY2tzIGl0IGZvcmV2ZXIuAAAAAAAMY3JlYXRlX3NwbGl0AAAABAAAAAAAAAAHY3JlYXRvcgAAAAATAAAAAAAAAApyZWNpcGllbnRzAAAAAAPqAAAAEwAAAAAAAAAGc2hhcmVzAAAAAAPqAAAABAAAAAAAAAAKY29udHJvbGxlcgAAAAAD6AAAABMAAAABAAAD6QAAAAYAAAAD",
-        "AAAAAAAAADZSZXBsYWNlcyB0aGUgcmVjaXBpZW50cyBhbmQgc2hhcmVzIG9mIGEgbXV0YWJsZSBzcGxpdC4AAAAAAAx1cGRhdGVfc3BsaXQAAAADAAAAAAAAAAJpZAAAAAAABgAAAAAAAAAKcmVjaXBpZW50cwAAAAAD6gAAABMAAAAAAAAABnNoYXJlcwAAAAAD6gAAAAQAAAABAAAD6QAAAAIAAAAD",
+        "AAAAAAAAAL5SZWdpc3RlcnMgYSBuZXcgc3BsaXQgYW5kIHJldHVybnMgaXRzIGlkLiBTaGFyZXMgYXJlIGJhc2lzIHBvaW50cwphbmQgbXVzdCBzdW0gdG8gZXhhY3RseSAxMF8wMDAuIFBhc3NpbmcgYSBjb250cm9sbGVyIG1ha2VzIHRoZQpzcGxpdCBtdXRhYmxlIGJ5IHRoYXQgYWRkcmVzczsgcGFzc2luZyBOb25lIGxvY2tzIGl0IGZvcmV2ZXIuAAAAAAAMY3JlYXRlX3NwbGl0AAAABAAAAAAAAAAHY3JlYXRvcgAAAAATAAAAAAAAAApyZWNpcGllbnRzAAAAAAPqAAAH0AAAAAlSZWNpcGllbnQAAAAAAAAAAAAABnNoYXJlcwAAAAAD6gAAAAQAAAAAAAAACmNvbnRyb2xsZXIAAAAAA+gAAAATAAAAAQAAA+kAAAAGAAAAAw==",
+        "AAAAAAAAADZSZXBsYWNlcyB0aGUgcmVjaXBpZW50cyBhbmQgc2hhcmVzIG9mIGEgbXV0YWJsZSBzcGxpdC4AAAAAAAx1cGRhdGVfc3BsaXQAAAADAAAAAAAAAAJpZAAAAAAABgAAAAAAAAAKcmVjaXBpZW50cwAAAAAD6gAAB9AAAAAJUmVjaXBpZW50AAAAAAAAAAAAAAZzaGFyZXMAAAAAA+oAAAAEAAAAAQAAA+kAAAACAAAAAw==",
+        "AAAAAAAAAGZSZXR1cm5zIHRoZSBleGFjdCBwZXItcmVjaXBpZW50IGFtb3VudHMgYSBwYXltZW50IG9mIGBhbW91bnRgIHdvdWxkCnByb2R1Y2UsIHdpdGhvdXQgbW92aW5nIGFueSBmdW5kcy4AAAAAAA5wcmV2aWV3X3BheW91dAAAAAAAAgAAAAAAAAACaWQAAAAAAAYAAAAAAAAABmFtb3VudAAAAAAACwAAAAEAAAPpAAAD6gAAAAsAAAAD",
         "AAAAAAAAAGlIYW5kcyBjb250cm9sIG9mIGEgbXV0YWJsZSBzcGxpdCB0byBhbm90aGVyIGFkZHJlc3MsIG9yIGxvY2tzIGl0CmZvcmV2ZXIgd2hlbiB0aGUgbmV3IGNvbnRyb2xsZXIgaXMgTm9uZS4AAAAAAAAQdHJhbnNmZXJfY29udHJvbAAAAAIAAAAAAAAAAmlkAAAAAAAGAAAAAAAAAA5uZXdfY29udHJvbGxlcgAAAAAD6AAAABMAAAABAAAD6QAAAAIAAAAD",
         "AAAABQAAAAAAAAAAAAAAEkNvbnRyb2xUcmFuc2ZlcnJlZAAAAAAAAQAAABNjb250cm9sX3RyYW5zZmVycmVkAAAAAAIAAAAAAAAAAmlkAAAAAAAGAAAAAQAAAAAAAAAObmV3X2NvbnRyb2xsZXIAAAAAA+gAAAATAAAAAAAAAAI=" ]),
       options
@@ -176,6 +188,7 @@ export class Client extends ContractClient {
         split_count: this.txFromJSON<u64>,
         create_split: this.txFromJSON<Result<u64>>,
         update_split: this.txFromJSON<Result<void>>,
+        preview_payout: this.txFromJSON<Result<Array<i128>>>,
         transfer_control: this.txFromJSON<Result<void>>
   }
 }
