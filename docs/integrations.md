@@ -12,6 +12,17 @@ await client.pay({ from: buyer, id: sellerSplit, token: USDC, amount });
 
 One transaction, three balances updated, nothing to reconcile later.
 
+Settling a day of sales across many sellers batches the same way:
+
+```ts
+await client.pay_many({
+  from: platform,
+  ids: [sellerSplitA, sellerSplitB, sellerSplitC],
+  amounts: [12_000_000n, 8_500_000n, 20_000_000n],
+  token: USDC,
+});
+```
+
 ## Team payroll pool
 
 Create a mutable split with your multisig as controller and each member as a recipient. Revenue sources `deposit` into it whenever money arrives. Once per month anyone calls `distribute`. Adjusting shares when the team changes is one `update_split` from the controller.
