@@ -7,3 +7,5 @@ test_snapshots/
 .env.*
 
 .vercel
+indexer/events.ndjson
+indexer/state.json
