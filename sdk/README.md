@@ -38,7 +38,16 @@ const tx = await client.create_split({
 await tx.signAndSend({ signTransaction });
 ```
 
-`pay`, `deposit`, `distribute`, `balance`, `update_split` and `split_count` follow the same shape. See `src/index.ts` for the full typed API.
+`pay`, `pay_many`, `deposit`, `distribute`, `balance`, `preview_payout`, `update_split`, `transfer_control`, `splits_of` and `split_count` follow the same shape. See `src/index.ts` for the full typed API.
+
+Recipients are tagged variants, either an account or another split:
+
+```ts
+recipients: [
+  { tag: "Account", values: ["G…"] },
+  { tag: "Split", values: [2n] },
+],
+```
 
 ## Regenerating
 
