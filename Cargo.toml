@@ -10,6 +10,7 @@ repository = "https://github.com/tributary-protocol/tributary"
 
 [workspace.dependencies]
 soroban-sdk = "26.1.0"
+proptest = "1.0"
 
 [profile.release]
 opt-level = "z"
