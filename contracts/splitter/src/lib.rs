@@ -8,7 +8,7 @@
 
 use soroban_sdk::{
     contract, contracterror, contractevent, contractimpl, contractmeta, contracttype, token,
-    Address, Env, Vec,
+    Address, Env, Vec, I256,
 };
 
 contractmeta!(key = "name", val = "tributary-splitter");
@@ -38,6 +38,10 @@ pub enum Error {
     NothingToDistribute = 8,
     TooManyRecipients = 9,
     BadChildSplit = 10,
+    /// An arithmetic path produced a value that does not fit the i128 the
+    /// contract stores. Can only happen if a share exceeds TOTAL_SHARES, which
+    /// `validate` forbids, but we surface it as a typed error rather than panic.
+    ArithmeticOverflow = 11,
 }
 
 #[contracttype]
@@ -294,7 +298,7 @@ impl Splitter {
             return Err(Error::InvalidAmount);
         }
         let split = load(&env, id)?;
-        Ok(amounts(&env, &split, amount))
+        amounts(&env, &split, amount)
     }
 
     pub fn balance(env: Env, id: u64, token: Address) -> i128 {
@@ -356,26 +360,34 @@ fn validate(
     Ok(())
 }
 
-fn amounts(env: &Env, split: &Split, amount: i128) -> Vec<i128> {
+fn amounts(env: &Env, split: &Split, amount: i128) -> Result<Vec<i128>, Error> {
     let mut out = Vec::new(env);
     let last = split.recipients.len() - 1;
     let mut assigned: i128 = 0;
+    let total = I256::from_i128(env, TOTAL_SHARES as i128);
     for i in 0..split.recipients.len() {
         let part = if i == last {
             amount - assigned
         } else {
-            amount * split.shares.get_unchecked(i) as i128 / TOTAL_SHARES as i128
+            // `amount * share` can overflow i128 for large token amounts
+            // (custom high-supply tokens) before the division brings it back
+            // into range. Compute the intermediate in 256-bit space so any
+            // valid i128 amount stays panic- and wrap-free.
+            let product = I256::from_i128(env, amount)
+                .mul(&I256::from_i128(env, split.shares.get_unchecked(i) as i128));
+            let part_i256 = product.div(&total);
+            part_i256.to_i128().ok_or(Error::ArithmeticOverflow)?
         };
         out.push_back(part);
         assigned += part;
     }
-    out
+    Ok(out)
 }
 
 fn payout(env: &Env, split: &Split, from: &Address, token: &Address, amount: i128) {
     let client = token::Client::new(env, token);
     let vault = env.current_contract_address();
-    let parts = amounts(env, split, amount);
+    let parts = amounts(env, split, amount).unwrap_or_else(|_| Vec::new(env));
     for i in 0..split.recipients.len() {
         let part = parts.get_unchecked(i);
         if part <= 0 {
