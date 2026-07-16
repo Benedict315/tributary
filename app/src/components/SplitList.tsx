@@ -8,6 +8,7 @@ import {
   TOKENS,
   EXPLORER,
 } from "../lib/tributary";
+import { CopyButton } from "./CopyButton";
 
 function Detail({ split }: { split: SplitView }) {
   const [balances, setBalances] = useState<{ code: string; amount: bigint }[]>([]);
@@ -108,8 +109,11 @@ export default function SplitList({
             >
               <div className="split-head">
                 <span className="split-id">#{key}</span>
+                <CopyButton text={String(key)}>
+                  Copy
+                </CopyButton>
                 <span>
-                  {mine.has(key) && <span className="badge own">yours</span>}{" "}
+                  {mine.has(key) && <span className="badge own">yours</span>}
                   <span className="badge">
                     {s.controller ? "mutable" : "locked"}
                   </span>
@@ -119,14 +123,19 @@ export default function SplitList({
                 {s.recipients.map((r, i) => (
                   <li key={i}>
                     {r.tag === "Account" ? (
-                      <a
-                        href={`${EXPLORER}/account/${r.values[0]}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {recipientLabel(r)}
-                      </a>
+                      <>
+                        <a
+                          href={`${EXPLORER}/account/${r.values[0]}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {recipientLabel(r)}
+                        </a>
+                        <CopyButton text={r.values[0]}>
+                          Copy
+                        </CopyButton>
+                      </>
                     ) : (
                       <span className="nested">{recipientLabel(r)}</span>
                     )}
