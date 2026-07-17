@@ -1,9 +1,7 @@
 #![cfg(test)]
 extern crate alloc;
-
 use super::*;
-use proptest::prelude::*;
-use soroban_sdk::testutils::Address as _;
+use soroban_sdk::testutils::{Address as _, Events};
 use soroban_sdk::{vec, Env, IntoVal};
 
 struct Setup {
@@ -31,6 +29,35 @@ fn acct(a: &Address) -> Recipient {
     Recipient::Account(a.clone())
 }
 
+fn symbol(env: &Env, name: &str) -> soroban_sdk::Symbol {
+    soroban_sdk::Symbol::new(env, name)
+}
+
+fn map_from_tuples(env: &Env, items: &[(&str, soroban_sdk::Val)]) -> soroban_sdk::Val {
+    let mut map: soroban_sdk::Map<soroban_sdk::Symbol, soroban_sdk::Val> =
+        soroban_sdk::Map::new(env);
+    for (k, v) in items {
+        map.set(symbol(env, k), *v);
+    }
+    map.into_val(env)
+}
+
+fn expected_event(
+    env: &Env,
+    contract: &Address,
+    topic_name: &str,
+    id: u64,
+    data: &[(&str, soroban_sdk::Val)],
+) -> (
+    Address,
+    soroban_sdk::Vec<soroban_sdk::Val>,
+    soroban_sdk::Val,
+) {
+    let topics = (symbol(env, topic_name), id).into_val(env);
+    let data_val = map_from_tuples(env, data);
+    (contract.clone(), topics, data_val)
+}
+
 #[test]
 fn create_and_get() {
     let s = setup();
@@ -43,6 +70,18 @@ fn create_and_get() {
         &vec![&s.env, acct(&a), acct(&b)],
         &vec![&s.env, 6_000, 4_000],
         &None,
+    );
+
+    let expected_created = expected_event(
+        &s.env,
+        &s.client.address,
+        "split_created",
+        id,
+        &[("creator", creator.clone().into_val(&s.env))],
+    );
+    assert_eq!(
+        s.env.events().all(),
+        soroban_sdk::vec![&s.env, expected_created]
     );
 
     assert_eq!(id, 0);
@@ -205,6 +244,21 @@ fn pay_distributes_by_shares() {
     );
 
     s.client.pay(&payer, &id, &token_id, &100_000);
+
+    let expected_paid = expected_event(
+        &s.env,
+        &s.client.address,
+        "split_paid",
+        id,
+        &[
+            ("token", token_id.clone().into_val(&s.env)),
+            ("amount", 100_000i128.into_val(&s.env)),
+        ],
+    );
+    assert_eq!(
+        s.env.events().all().filter_by_contract(&s.client.address),
+        soroban_sdk::vec![&s.env, expected_paid]
+    );
 
     assert_eq!(token_client.balance(&a), 50_000);
     assert_eq!(token_client.balance(&b), 30_000);
@@ -569,6 +623,21 @@ fn deposit_credits_split_balance() {
 
     s.client.deposit(&payer, &id, &token_id, &400);
 
+    let expected_deposited = expected_event(
+        &s.env,
+        &s.client.address,
+        "deposited",
+        id,
+        &[
+            ("token", token_id.clone().into_val(&s.env)),
+            ("amount", 400i128.into_val(&s.env)),
+        ],
+    );
+    assert_eq!(
+        s.env.events().all().filter_by_contract(&s.client.address),
+        soroban_sdk::vec![&s.env, expected_deposited]
+    );
+
     assert_eq!(s.client.balance(&id, &token_id), 400);
     assert_eq!(token_client.balance(&s.client.address), 400);
     assert_eq!(token_client.balance(&payer), 600);
@@ -593,6 +662,21 @@ fn distribute_pays_recipients_and_clears_balance() {
     s.client.deposit(&payer, &id, &token_id, &600);
     s.client.deposit(&payer, &id, &token_id, &400);
     let distributed = s.client.distribute(&id, &token_id);
+
+    let expected_distributed = expected_event(
+        &s.env,
+        &s.client.address,
+        "distributed",
+        id,
+        &[
+            ("token", token_id.clone().into_val(&s.env)),
+            ("amount", 1000i128.into_val(&s.env)),
+        ],
+    );
+    assert_eq!(
+        s.env.events().all().filter_by_contract(&s.client.address),
+        soroban_sdk::vec![&s.env, expected_distributed]
+    );
 
     assert_eq!(distributed, 1_000);
     assert_eq!(token_client.balance(&a), 750);
@@ -674,9 +758,31 @@ fn control_can_be_transferred_and_renounced() {
     );
 
     s.client.transfer_control(&id, &Some(next.clone()));
-    assert_eq!(s.client.get_split(&id).controller, Some(next));
+    let expected_transfer_1 = expected_event(
+        &s.env,
+        &s.client.address,
+        "control_transferred",
+        id,
+        &[("new_controller", Some(next.clone()).into_val(&s.env))],
+    );
+    assert_eq!(
+        s.env.events().all().filter_by_contract(&s.client.address),
+        soroban_sdk::vec![&s.env, expected_transfer_1]
+    );
+    assert_eq!(s.client.get_split(&id).controller, Some(next.clone()));
 
     s.client.transfer_control(&id, &None);
+    let expected_transfer_2 = expected_event(
+        &s.env,
+        &s.client.address,
+        "control_transferred",
+        id,
+        &[("new_controller", None::<Address>.into_val(&s.env))],
+    );
+    assert_eq!(
+        s.env.events().all().filter_by_contract(&s.client.address),
+        soroban_sdk::vec![&s.env, expected_transfer_2]
+    );
     assert_eq!(s.client.get_split(&id).controller, None);
 
     let update = s
@@ -707,6 +813,12 @@ fn controller_can_update_mutable_split() {
         &id,
         &vec![&s.env, acct(&a), acct(&b)],
         &vec![&s.env, 7_000, 3_000],
+    );
+
+    let expected_updated = expected_event(&s.env, &s.client.address, "split_updated", id, &[]);
+    assert_eq!(
+        s.env.events().all().filter_by_contract(&s.client.address),
+        soroban_sdk::vec![&s.env, expected_updated]
     );
 
     let split = s.client.get_split(&id);
