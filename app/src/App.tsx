@@ -8,17 +8,9 @@ import {
   shortAddress,
 } from "./lib/tributary";
 import { useTranslation } from "./lib/i18n";
-import ActionPanel from "./components/ActionPanel";
-import SplitList from "./components/SplitList";
-import Activity from "./components/Activity";
+import DashboardPage from "./pages/DashboardPage";
+import SplitPage from "./pages/SplitPage";
 import LanguageSwitcher from "./components/LanguageSwitcher";
-
-const REFRESH_MS = 30_000;
-
-const rise = {
-  initial: { opacity: 0, y: 14 },
-  animate: { opacity: 1, y: 0 },
-};
 
 export default function App() {
   const { t } = useTranslation();
@@ -41,10 +33,12 @@ export default function App() {
           <img src="/logo.svg" alt="" width="34" height="34" />
           <span>Tributary</span>
           <span className="badge net">{t("testnet")}</span>
-        </div>
+        </Link>
         <nav>
           <LanguageSwitcher />
-          <a href="https://github.com/tributary-protocol/tributary">{t("github")}</a>
+          <a href="https://github.com/tributary-protocol/tributary">
+            {t("github")}
+          </a>
           {wallet ? (
             <span className="wallet">{shortAddress(wallet)}</span>
           ) : (
@@ -55,17 +49,7 @@ export default function App() {
         </nav>
       </header>
 
-      <main>
-        <motion.section
-          className="intro"
-          {...rise}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-        >
-          <h1>{t("introTitle")}</h1>
-          <p>
-            {t("introDesc")}
-          </p>
-        </motion.section>
+      {error && <div className="error">{error}</div>}
 
       <main>
         <Routes>
@@ -90,7 +74,9 @@ export default function App() {
 
       <footer>
         <span>Apache-2.0</span>
-        <a href={`${EXPLORER}/contract/${CONTRACT_ID}`}>{t("contractOnTestnet")}</a>
+        <a href={`${EXPLORER}/contract/${CONTRACT_ID}`}>
+          {t("contractOnTestnet")}
+        </a>
         <a href="https://github.com/tributary-protocol/tributary">
           tributary-protocol/tributary
         </a>

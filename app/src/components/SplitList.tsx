@@ -1,67 +1,7 @@
 import { motion } from "motion/react";
-import {
-  EXPLORER,
-  recipientLabel,
-  SplitView,
-} from "../lib/tributary";
+import { EXPLORER, recipientLabel, SplitView } from "../lib/tributary";
 import { useTranslation } from "../lib/i18n";
 import { CopyButton } from "./CopyButton";
-
-function Detail({ split }: { split: SplitView }) {
-  const { t } = useTranslation();
-  const [balances, setBalances] = useState<{ code: string; amount: bigint }[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    Promise.all(
-      TOKENS.map(async (t) => {
-        const { result } = await readClient().balance({
-          id: split.id,
-          token: t.contract,
-        });
-        return { code: t.code, amount: result };
-      }),
-    ).then((all) => {
-      if (active) setBalances(all.filter((b) => b.amount > 0n));
-    });
-    return () => {
-      active = false;
-    };
-  }, [split.id]);
-
-  return (
-    <motion.div
-      className="detail"
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: "auto" }}
-      exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.22, ease: "easeOut" }}
-      style={{ overflow: "hidden" }}
-    >
-      {split.recipients.map((r, i) => (
-        <div className="detail-row" key={i}>
-          <span className="mono">
-            {r.tag === "Account" ? r.values[0] : t("nestedSplit", { id: r.values[0].toString() })}
-          </span>
-          <span>{(split.shares[i] / 100).toFixed(2).replace(/\.?0+$/, "")}%</span>
-        </div>
-      ))}
-      {split.controller && (
-        <div className="detail-row">
-          <span className="mono">{t("detailController", { controller: split.controller })}</span>
-        </div>
-      )}
-      {balances.map((b) => (
-        <div className="detail-row" key={b.code}>
-          <span>{t("detailEscrow")}</span>
-          <span>
-            {fromStroops(b.amount)} {b.code}
-          </span>
-        </div>
-      ))}
-    </motion.div>
-  );
-}
 
 export default function SplitList({
   splits,
@@ -75,16 +15,14 @@ export default function SplitList({
   onOpenSplit: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState<string | null>(null);
 
   if (loading) return <p className="note">{t("loadingSplits")}</p>;
+
   if (splits.length === 0) {
     return (
       <div className="empty">
         <p>{t("noSplitsOnContract")}</p>
-        <p className="note">
-          {t("noSplitsPrompt")}
-        </p>
+        <p className="note">{t("noSplitsPrompt")}</p>
       </div>
     );
   }
@@ -117,11 +55,11 @@ export default function SplitList({
             >
               <div className="split-head">
                 <span className="split-id">#{key}</span>
-                <CopyButton text={String(key)}>
-                  {t("copy")}
-                </CopyButton>
+                <CopyButton text={String(key)}>{t("copy")}</CopyButton>
                 <span>
-                  {mine.has(key) && <span className="badge own">{t("yours")}</span>}
+                  {mine.has(key) && (
+                    <span className="badge own">{t("yours")}</span>
+                  )}
                   <span className="badge">
                     {s.controller ? t("mutable") : t("locked")}
                   </span>
@@ -140,12 +78,12 @@ export default function SplitList({
                         >
                           {recipientLabel(r)}
                         </a>
-                        <CopyButton text={r.values[0]}>
-                          {t("copy")}
-                        </CopyButton>
+                        <CopyButton text={r.values[0]}>{t("copy")}</CopyButton>
                       </>
                     ) : (
-                      <span className="nested">{t("nestedSplit", { id: r.values[0].toString() })}</span>
+                      <span className="nested">
+                        {t("nestedSplit", { id: r.values[0].toString() })}
+                      </span>
                     )}
                     <span>
                       {(s.shares[i] / 100).toFixed(2).replace(/\.?0+$/, "")}%
