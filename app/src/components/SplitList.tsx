@@ -7,6 +7,9 @@ import {
   SplitView,
   TOKENS,
   EXPLORER,
+  fetchActivityForSplit,
+  ActivityItem,
+  tokenCode,
 } from "../lib/tributary";
 import { useTranslation } from "../lib/i18n";
 import { CopyButton } from "./CopyButton";
@@ -14,6 +17,8 @@ import { CopyButton } from "./CopyButton";
 function Detail({ split }: { split: SplitView }) {
   const { t } = useTranslation();
   const [balances, setBalances] = useState<{ code: string; amount: bigint }[]>([]);
+  const [history, setHistory] = useState<ActivityItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(true);
 
   useEffect(() => {
     let active = true;
@@ -28,6 +33,19 @@ function Detail({ split }: { split: SplitView }) {
     ).then((all) => {
       if (active) setBalances(all.filter((b) => b.amount > 0n));
     });
+
+    fetchActivityForSplit(split.id)
+      .then((items) => {
+        if (active) {
+          setHistory(items);
+          setLoadingHistory(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch split activity history:", err);
+        if (active) setLoadingHistory(false);
+      });
+
     return () => {
       active = false;
     };
@@ -63,6 +81,37 @@ function Detail({ split }: { split: SplitView }) {
           </span>
         </div>
       ))}
+
+      <div className="detail-history">
+        <h4 className="detail-history-title">{t("detailHistoryTitle")}</h4>
+        {loadingHistory ? (
+          <p className="detail-history-loading">{t("detailHistoryLoading")}</p>
+        ) : history.length === 0 ? (
+          <p className="detail-history-empty">{t("detailHistoryEmpty")}</p>
+        ) : (
+          <ul className="detail-history-list">
+            {history.map((item) => (
+              <li key={item.eventId} className="detail-history-item">
+                <span className={`badge-history ${item.type}`}>
+                  {item.type === "split_paid" ? t("activityPaid") : t("activityDistributed")}
+                </span>
+                <span className="history-amount">
+                  {item.amount !== undefined && `${fromStroops(item.amount)} ${tokenCode(item.token)}`}
+                </span>
+                <a
+                  href={`${EXPLORER}/tx/${item.txHash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="history-tx-link"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {t("activityTx")}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </motion.div>
   );
 }

@@ -179,6 +179,74 @@ export async function fetchActivity(limit = 12): Promise<ActivityItem[]> {
   return items.reverse().slice(0, limit);
 }
 
+export async function fetchActivityForSplit(
+  splitId: bigint,
+  limit = 50,
+): Promise<ActivityItem[]> {
+  const server = new rpc.Server(RPC_URL);
+  const latest = await server.getLatestLedger();
+  const filters = [
+    { type: "contract" as const, contractIds: [CONTRACT_ID] },
+  ];
+
+  const events = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 6; page++) {
+    const res = await server.getEvents(
+      cursor
+        ? { cursor, filters, limit: 100 }
+        : {
+            startLedger: Math.max(1, latest.sequence - 9_900),
+            filters,
+            limit: 100,
+          },
+    );
+    events.push(...res.events);
+    if (!res.cursor || res.cursor === cursor) break;
+    cursor = res.cursor;
+    if (!cursor) break;
+    const cursorLedger = Number(BigInt(cursor.split("-")[0]) >> 32n);
+    if (res.events.length < 100 && cursorLedger >= res.latestLedger) break;
+  }
+
+  const items: ActivityItem[] = [];
+  for (const ev of events) {
+    let type: unknown;
+    let id: unknown;
+    let amount: bigint | undefined;
+    let token: string | undefined;
+    try {
+      type = scValToNative(ev.topic[0]);
+      id = ev.topic.length > 1 ? scValToNative(ev.topic[1]) : undefined;
+      const data = scValToNative(ev.value);
+      if (data && typeof data === "object" && "amount" in data) {
+        amount = data.amount as bigint;
+      }
+      if (data && typeof data === "object" && "token" in data) {
+        token = data.token as string;
+      }
+    } catch {
+      continue;
+    }
+    if (typeof type !== "string") continue;
+    if (typeof id === "bigint" && id === splitId) {
+      if (type === "split_paid" || type === "distributed") {
+        items.push({
+          eventId: ev.id,
+          type,
+          id,
+          amount,
+          token,
+          ledger: ev.ledger,
+          txHash: ev.txHash,
+        });
+      }
+    }
+  }
+  return items.reverse().slice(0, limit);
+}
+
+
 export function recipientLabel(r: Recipient): string {
   return r.tag === "Account"
     ? shortAddress(r.values[0])
