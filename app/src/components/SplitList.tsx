@@ -15,6 +15,8 @@ export default function SplitList({
   onOpenSplit: (id: string) => void;
 }) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   if (loading) return <p className="note">{t("loadingSplits")}</p>;
 
@@ -27,11 +29,32 @@ export default function SplitList({
     );
   }
 
+  const searchLower = search.toLowerCase();
+  const filteredSplits = splits.filter((s) => {
+    if (!searchLower) return true;
+    if (String(s.id).includes(searchLower)) return true;
+    return s.recipients.some((r) =>
+      String(r.values[0]).toLowerCase().includes(searchLower)
+    );
+  });
+
   return (
     <section>
-      <h2>{t("recentSplits")}</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <h2>Recent splits</h2>
+        <input
+          type="text"
+          placeholder="Search by ID or address..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ padding: "4px 8px", borderRadius: "4px", border: "1px solid #444", background: "#1a1a1a", color: "inherit" }}
+        />
+      </div>
       <div className="splits">
-        {splits.map((s, index) => {
+        {filteredSplits.length === 0 && (
+          <p className="note">No splits match your search.</p>
+        )}
+        {filteredSplits.map((s, index) => {
           const key = String(s.id);
           return (
             <motion.div
