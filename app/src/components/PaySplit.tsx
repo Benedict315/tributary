@@ -36,13 +36,13 @@ export default function PaySplit({
       setPreview([]);
       return;
     }
-    previewPayout(BigInt(splitId), toStroops(amount)).then((parts) => {
+    previewPayout(BigInt(splitId), toStroops(amount, token.decimals)).then((parts) => {
       if (active) setPreview(parts);
     });
     return () => {
       active = false;
     };
-  }, [splitId, amount]);
+  }, [splitId, amount, token.decimals]);
 
   async function submit() {
     if (!wallet) {
@@ -61,7 +61,7 @@ export default function PaySplit({
         from: wallet,
         id: BigInt(splitId),
         token: token.contract,
-        amount: toStroops(amount),
+        amount: toStroops(amount, token.decimals),
       });
       const { result } = await tx.signAndSend();
       setMessage(
@@ -94,7 +94,7 @@ export default function PaySplit({
         <input
           type="number"
           min="0"
-          step="0.0000001"
+          step={1 / 10 ** token.decimals}
           placeholder={t("amount")}
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
@@ -107,7 +107,7 @@ export default function PaySplit({
             <li key={i}>
               <span>{recipientLabel(r)}</span>
               <span>
-                {fromStroops(preview[i])} {token.code}
+                {fromStroops(preview[i], token.decimals)} {token.code}
               </span>
             </li>
           ))}

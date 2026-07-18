@@ -15,16 +15,19 @@ export const CONTRACT_ID = networks.testnet.contractId;
 export interface Token {
   code: string;
   contract: string;
+  decimals: number;
 }
 
 export const TOKENS: Token[] = [
   {
     code: "XLM",
     contract: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+    decimals: 7,
   },
   {
     code: "USDC",
     contract: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    decimals: 6,
   },
 ];
 
@@ -189,16 +192,22 @@ export function shortAddress(addr: string): string {
   return `${addr.slice(0, 4)}…${addr.slice(-4)}`;
 }
 
-// Stellar classic assets always use 7 decimals through their SAC.
-export function toStroops(units: string): bigint {
+// Convert a decimal string to the smallest unit (stroops) based on token decimals
+export function toStroops(units: string, decimals: number = 7): bigint {
   const [whole, frac = ""] = units.split(".");
-  const padded = (frac + "0000000").slice(0, 7);
-  return BigInt(whole || "0") * 10_000_000n + BigInt(padded);
+  const zeros = "0".repeat(decimals);
+  const padded = (frac + zeros).slice(0, decimals);
+  const divisor = BigInt(10 ** decimals);
+  return BigInt(whole || "0") * divisor + BigInt(padded);
 }
 
-export function fromStroops(stroops: bigint): string {
-  return (Number(stroops) / 10_000_000).toLocaleString(undefined, {
-    maximumFractionDigits: 7,
+// Convert from smallest units (stroops) to decimal string based on token decimals
+export function fromStroops(stroops: bigint, decimals: number = 7): string {
+  const divisor = 10 ** decimals;
+  const whole = Number(stroops / BigInt(divisor));
+  const frac = Number(stroops % BigInt(divisor));
+  return (whole + frac / divisor).toLocaleString(undefined, {
+    maximumFractionDigits: decimals,
   });
 }
 
