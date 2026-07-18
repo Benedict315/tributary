@@ -8,7 +8,7 @@
   --panel: #111a2c;
   --line: #1f2c45;
   --text: #e8eefb;
-  --muted: #8fa3c4;
+  --muted: #b8c5d9;
   --accent: #4cc3ff;
   --accent-ink: #06121f;
 }
@@ -479,6 +479,18 @@ select.lang-select:focus {
     animation: none !important;
     transition: none !important;
   }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 @media (max-width: 640px){

@@ -59,28 +59,37 @@ export default function RecipientEditor({
     <>
       {rows.map((row, i) => (
         <div className="row" key={i}>
+          <label htmlFor={`kind-${i}`} className="visually-hidden">Recipient type</label>
           <select
+            id={`kind-${i}`}
             className="kind"
             value={row.kind}
             onChange={(e) =>
               setRow(i, { kind: e.target.value as Row["kind"], value: "" })
             }
+            aria-label={`Recipient type for row ${i + 1}`}
           >
             <option value="address">{t("kindAddress")}</option>
             <option value="split">{t("kindSplit")}</option>
           </select>
+          <label htmlFor={`value-${i}`} className="visually-hidden">{row.kind === "address" ? t("placeholderAddress") : t("placeholderSplit")}</label>
           <input
+            id={`value-${i}`}
             placeholder={row.kind === "address" ? t("placeholderAddress") : t("placeholderSplit")}
             value={row.value}
             onChange={(e) => setRow(i, { value: e.target.value })}
+            aria-label={`${row.kind === "address" ? "Address" : "Split ID"} for row ${i + 1}`}
           />
+          <label htmlFor={`percent-${i}`} className="visually-hidden">Percentage</label>
           <input
+            id={`percent-${i}`}
             className="pct"
             type="number"
             min="0"
             max="100"
             value={row.percent}
             onChange={(e) => setRow(i, { percent: e.target.value })}
+            aria-label={`Percentage for row ${i + 1}`}
           />
           <span className="unit" title="Percentage of the total payment this recipient receives. Stored on-chain as basis points (1% = 100 basis points).">% ⓘ</span>
           {rows.length > 1 && (

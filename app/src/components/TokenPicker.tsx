@@ -60,18 +60,24 @@ export default function TokenPicker({
       </select>
       {custom && (
         <>
+          <label htmlFor="token-contract" className="visually-hidden">Token contract address</label>
           <input
+            id="token-contract"
             placeholder="C… token contract"
             value={address}
             onChange={(e) => setCustomAddress(e.target.value)}
+            aria-label="Token contract address"
           />
+          <label htmlFor="token-decimals" className="visually-hidden">Token decimals</label>
           <input
+            id="token-decimals"
             type="number"
             min="0"
             max="18"
             placeholder="Decimals"
             value={decimals}
             onChange={(e) => setCustomDecimals(e.target.value)}
+            aria-label="Token decimals (0-18)"
           />
         </>
       )}

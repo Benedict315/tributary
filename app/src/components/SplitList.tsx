@@ -107,6 +107,15 @@ export default function SplitList({
               transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.3) }}
               whileHover={{ y: -2 }}
               onClick={() => setOpen(open === key ? null : key)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setOpen(open === key ? null : key);
+                }
+              }}
+              tabIndex={0}
+              role="button"
+              aria-expanded={open === key}
             >
               <div className="split-head">
                 <span className="split-id">#{key}</span>

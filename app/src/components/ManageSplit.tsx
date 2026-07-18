@@ -109,7 +109,8 @@ export default function ManageSplit({
     <section className="card">
       <h2>{t("manageTitle")}</h2>
       <div className="row">
-        <select value={splitId} onChange={(e) => select(e.target.value)}>
+        <label htmlFor="manage-split-select" className="visually-hidden">{t("chooseSplitControl")}</label>
+        <select id="manage-split-select" value={splitId} onChange={(e) => select(e.target.value)}>
           <option value="">{t("chooseSplitControl")}</option>
           {mine.map((s) => (
             <option key={String(s.id)} value={String(s.id)}>
@@ -127,7 +128,9 @@ export default function ManageSplit({
             </button>
           </div>
           <div className="row">
+            <label htmlFor="controller-input" className="visually-hidden">{t("placeholderController")}</label>
             <input
+              id="controller-input"
               placeholder={t("placeholderController")}
               value={transferTo}
               onChange={(e) => setTransferTo(e.target.value)}
