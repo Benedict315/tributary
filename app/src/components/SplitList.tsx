@@ -8,6 +8,9 @@ import {
   TOKENS,
   EXPLORER,
   Recipient,
+  fetchActivityForSplit,
+  ActivityItem,
+  tokenCode,
 } from "../lib/tributary";
 import { useTranslation } from "../lib/i18n";
 import { CopyButton } from "./CopyButton";
@@ -132,6 +135,8 @@ function SplitTree({ split, depth = 0 }: SplitTreeProps) {
 function Detail({ split }: { split: SplitView }) {
   const { t } = useTranslation();
   const [balances, setBalances] = useState<{ code: string; amount: bigint }[]>([]);
+  const [history, setHistory] = useState<ActivityItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(true);
 
   useEffect(() => {
     let active = true;
@@ -146,6 +151,19 @@ function Detail({ split }: { split: SplitView }) {
     ).then((all) => {
       if (active) setBalances(all.filter((b) => b.amount > 0n));
     });
+
+    fetchActivityForSplit(split.id)
+      .then((items) => {
+        if (active) {
+          setHistory(items);
+          setLoadingHistory(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch split activity history:", err);
+        if (active) setLoadingHistory(false);
+      });
+
     return () => {
       active = false;
     };
@@ -174,6 +192,37 @@ function Detail({ split }: { split: SplitView }) {
           </span>
         </div>
       ))}
+
+      <div className="detail-history">
+        <h4 className="detail-history-title">{t("detailHistoryTitle")}</h4>
+        {loadingHistory ? (
+          <p className="detail-history-loading">{t("detailHistoryLoading")}</p>
+        ) : history.length === 0 ? (
+          <p className="detail-history-empty">{t("detailHistoryEmpty")}</p>
+        ) : (
+          <ul className="detail-history-list">
+            {history.map((item) => (
+              <li key={item.eventId} className="detail-history-item">
+                <span className={`badge-history ${item.type}`}>
+                  {item.type === "split_paid" ? t("activityPaid") : t("activityDistributed")}
+                </span>
+                <span className="history-amount">
+                  {item.amount !== undefined && `${fromStroops(item.amount)} ${tokenCode(item.token)}`}
+                </span>
+                <a
+                  href={`${EXPLORER}/tx/${item.txHash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="history-tx-link"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {t("activityTx")}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </motion.div>
   );
 }
@@ -189,6 +238,7 @@ export default function SplitList({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   if (loading) return <p className="note">{t("loadingSplits")}</p>;
   if (splits.length === 0) {
@@ -202,11 +252,32 @@ export default function SplitList({
     );
   }
 
+  const searchLower = search.toLowerCase();
+  const filteredSplits = splits.filter((s) => {
+    if (!searchLower) return true;
+    if (String(s.id).includes(searchLower)) return true;
+    return s.recipients.some((r) =>
+      String(r.values[0]).toLowerCase().includes(searchLower)
+    );
+  });
+
   return (
     <section>
-      <h2>{t("recentSplits")}</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <h2>Recent splits</h2>
+        <input
+          type="text"
+          placeholder="Search by ID or address..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ padding: "4px 8px", borderRadius: "4px", border: "1px solid #444", background: "#1a1a1a", color: "inherit" }}
+        />
+      </div>
       <div className="splits">
-        {splits.map((s, index) => {
+        {filteredSplits.length === 0 && (
+          <p className="note">No splits match your search.</p>
+        )}
+        {filteredSplits.map((s, index) => {
           const key = String(s.id);
           return (
             <motion.div
