@@ -10,7 +10,6 @@ import {
 } from "../lib/tributary";
 import { useTranslation } from "../lib/i18n";
 import TokenPicker from "./TokenPicker";
-
 export default function PaySplit({
   wallet,
   splits,
@@ -27,23 +26,30 @@ export default function PaySplit({
   const [preview, setPreview] = useState<bigint[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-
+  const [amountError, setAmountError] = useState<string | null>(null);
   const selected = splits.find((s) => String(s.id) === splitId);
-
   useEffect(() => {
     let active = true;
+    setAmountError(null);
     if (splitId === "" || !amount || parseFloat(amount) <= 0) {
       setPreview([]);
       return;
     }
-    previewPayout(BigInt(splitId), toStroops(amount, token.decimals)).then((parts) => {
-      if (active) setPreview(parts);
-    });
+    try {
+      const stroops = toStroops(amount, token.decimals);
+      previewPayout(BigInt(splitId), stroops).then((parts) => {
+        if (active) setPreview(parts);
+      });
+    } catch (e) {
+      if (active) {
+        setPreview([]);
+        setAmountError(e instanceof Error ? e.message : String(e));
+      }
+    }
     return () => {
       active = false;
     };
   }, [splitId, amount, token.decimals]);
-
   async function submit() {
     if (!wallet) {
       setMessage(t("connectWalletFirst"));
@@ -76,7 +82,6 @@ export default function PaySplit({
       setBusy(false);
     }
   }
-
   return (
     <section className="card">
       <h2>{t("payTitle")}</h2>
@@ -101,6 +106,7 @@ export default function PaySplit({
         />
         <TokenPicker token={token} onChange={setToken} />
       </div>
+      {amountError && <p className="note">{amountError}</p>}
       {selected && preview.length === selected.recipients.length && (
         <ul className="preview">
           {selected.recipients.map((r, i) => (
@@ -113,7 +119,7 @@ export default function PaySplit({
           ))}
         </ul>
       )}
-      <button disabled={busy} onClick={submit}>
+      <button disabled={busy || !!amountError} onClick={submit}>
         {busy ? t("waitingForSignature") : t("payButton")}
       </button>
       {message && <p className="note">{message}</p>}
