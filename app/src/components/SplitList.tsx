@@ -7,9 +7,127 @@ import {
   SplitView,
   TOKENS,
   EXPLORER,
+  Recipient,
 } from "../lib/tributary";
 import { useTranslation } from "../lib/i18n";
 import { CopyButton } from "./CopyButton";
+
+interface SplitTreeProps {
+  split: SplitView;
+  depth?: number;
+}
+
+function SplitTree({ split, depth = 0 }: SplitTreeProps) {
+  const { t } = useTranslation();
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [childSplits, setChildSplits] = useState<Map<bigint, SplitView>>(new Map());
+  const [loadingChildren, setLoadingChildren] = useState<Set<bigint>>(new Set());
+
+  const toggleNode = async (recipient: Recipient) => {
+    if (recipient.tag !== "Split") return;
+    const childId = recipient.values[0];
+    const key = `${depth}-${childId.toString()}`;
+
+    if (expandedNodes.has(key)) {
+      setExpandedNodes((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    } else {
+      setExpandedNodes((prev) => new Set(prev).add(key));
+      if (!childSplits.has(childId)) {
+        setLoadingChildren((prev) => new Set(prev).add(childId));
+        try {
+          const { result } = await readClient().get_split({ id: childId });
+          if (result.isOk()) {
+            const childSplit = result.unwrap();
+            setChildSplits((prev) => new Map(prev).set(childId, {
+              id: childId,
+              recipients: [...childSplit.recipients],
+              shares: [...childSplit.shares],
+              controller: childSplit.controller,
+            }));
+          }
+        } catch (e) {
+          console.error("Failed to fetch child split", e);
+        } finally {
+          setLoadingChildren((prev) => {
+            const next = new Set(prev);
+            next.delete(childId);
+            return next;
+          });
+        }
+      }
+    }
+  };
+
+  return (
+    <div className="split-tree">
+      {split.recipients.map((r, i) => {
+        const share = split.shares[i];
+        const isSplit = r.tag === "Split";
+        const childId = isSplit ? r.values[0] : null;
+        const key = `${depth}-${childId?.toString()}`;
+        const isExpanded = expandedNodes.has(key);
+        const childSplit = childId ? childSplits.get(childId) : null;
+        const isLoading = childId ? loadingChildren.has(childId) : false;
+
+        return (
+          <div key={`${depth}-${i}`} className="tree-node">
+            <div
+              className="tree-node-content"
+              style={{ paddingLeft: `${depth * 20 + 8}px` }}
+            >
+              {isSplit && (
+                <button
+                  className="tree-toggle"
+                  onClick={() => toggleNode(r)}
+                  aria-expanded={isExpanded}
+                  aria-label={`Toggle split #${childId?.toString()}`}
+                >
+                  {isLoading ? "…" : (isExpanded ? "▼" : "▶")}
+                </button>
+              )}
+              {!isSplit && <span className="tree-spacer" />}
+              <span className="tree-label">
+                {r.tag === "Account" ? (
+                  <a
+                    href={`${EXPLORER}/account/${r.values[0]}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="tree-link"
+                  >
+                    {recipientLabel(r)}
+                  </a>
+                ) : (
+                  <span className="tree-split-link">
+                    {t("nestedSplit", { id: childId?.toString() ?? "" })}
+                  </span>
+                )}
+              </span>
+              <span className="tree-share">
+                {(share / 100).toFixed(2).replace(/\.?0+$/, "")}%
+              </span>
+            </div>
+            {isSplit && isExpanded && childSplit && (
+              <AnimatePresence>
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <SplitTree split={childSplit} depth={depth + 1} />
+                </motion.div>
+              </AnimatePresence>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function Detail({ split }: { split: SplitView }) {
   const { t } = useTranslation();
@@ -42,14 +160,7 @@ function Detail({ split }: { split: SplitView }) {
       transition={{ duration: 0.22, ease: "easeOut" }}
       style={{ overflow: "hidden" }}
     >
-      {split.recipients.map((r, i) => (
-        <div className="detail-row" key={i}>
-          <span className="mono">
-            {r.tag === "Account" ? r.values[0] : t("nestedSplit", { id: r.values[0].toString() })}
-          </span>
-          <span>{(split.shares[i] / 100).toFixed(2).replace(/\.?0+$/, "")}%</span>
-        </div>
-      ))}
+      <SplitTree split={split} />
       {split.controller && (
         <div className="detail-row">
           <span className="mono">{t("detailController", { controller: split.controller })}</span>
