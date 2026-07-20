@@ -10,3 +10,4 @@ test_snapshots/
 indexer/events.ndjson
 indexer/state.json
 *.tsbuildinfo
+package-lock.json
