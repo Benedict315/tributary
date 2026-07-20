@@ -151,6 +151,7 @@ export default function EscrowCard({
       </div>
       <div className="row">
         <button disabled={busy} onClick={deposit}>
+          {busy && <span className="btn-spinner" />}
           {busy ? t("working") : t("depositButton")}
         </button>
         <button
@@ -158,7 +159,8 @@ export default function EscrowCard({
           disabled={busy || !pending}
           onClick={distribute}
         >
-          {t("distributeButton")}
+          {busy && <span className="btn-spinner" />}
+          {busy ? t("working") : t("distributeButton")}
         </button>
       </div>
       {message && <p className="note">{message}</p>}

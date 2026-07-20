@@ -187,9 +187,11 @@ export default function ManageSplit({
                 {pendingAddr.slice(0, 4)}…{pendingAddr.slice(-4)} is proposed as controller.
               </span>
               <button disabled={busy} onClick={acceptTransfer}>
+                {busy && <span className="btn-spinner" />}
                 Accept control
               </button>
               <button className="ghost" disabled={busy} onClick={cancelTransfer}>
+                {busy && <span className="btn-spinner" />}
                 Decline
               </button>
             </div>
@@ -198,6 +200,7 @@ export default function ManageSplit({
           <RecipientEditor rows={rows} onChange={setRows} />
           <div className="row">
             <button disabled={busy} onClick={update}>
+              {busy && <span className="btn-spinner" />}
               {t("updateButton")}
             </button>
           </div>
@@ -208,14 +211,17 @@ export default function ManageSplit({
               onChange={(e) => setTransferTo(e.target.value)}
             />
             <button className="ghost" disabled={busy || isPendingTarget} onClick={proposeTransfer}>
+              {busy && <span className="btn-spinner" />}
               Propose transfer
             </button>
             {pendingAddr && (
               <button className="ghost" disabled={busy} onClick={cancelTransfer}>
+                {busy && <span className="btn-spinner" />}
                 Cancel transfer
               </button>
             )}
             <button className="ghost" disabled={busy} onClick={lock}>
+              {busy && <span className="btn-spinner" />}
               {confirmLock ? t("confirmLockButton") : t("lockButton")}
             </button>
           </div>
