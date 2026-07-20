@@ -40,6 +40,22 @@ export interface SplitView {
   controller: string | undefined;
 }
 
+function toSplitView(
+  id: bigint,
+  split: {
+    recipients: Recipient[];
+    shares: number[];
+    controller: string | undefined;
+  },
+): SplitView {
+  return {
+    id,
+    recipients: [...split.recipients],
+    shares: [...split.shares],
+    controller: split.controller,
+  };
+}
+
 export function readClient(): Client {
   return new Client({ ...networks.testnet, rpcUrl: RPC_URL });
 }
@@ -80,16 +96,16 @@ export async function fetchSplits(limit = 25): Promise<SplitView[]> {
     ids.map(async (id) => {
       const { result } = await client.get_split({ id });
       if (result.isErr()) return null;
-      const split = result.unwrap();
-      return {
-        id,
-        recipients: [...split.recipients],
-        shares: [...split.shares],
-        controller: split.controller,
-      };
+      return toSplitView(id, result.unwrap());
     }),
   );
   return splits.filter((s): s is SplitView => s !== null);
+}
+
+export async function fetchSplitById(id: bigint): Promise<SplitView | null> {
+  const { result } = await readClient().get_split({ id });
+  if (result.isErr()) return null;
+  return toSplitView(id, result.unwrap());
 }
 
 export async function fetchMineIds(creator: string): Promise<Set<string>> {
@@ -182,18 +198,112 @@ export async function fetchActivity(limit = 12): Promise<ActivityItem[]> {
   return items.reverse().slice(0, limit);
 }
 
+export async function fetchActivityForSplit(
+  splitId: bigint,
+  limit = 50,
+): Promise<ActivityItem[]> {
+  const server = new rpc.Server(RPC_URL);
+  const latest = await server.getLatestLedger();
+  const filters = [
+    { type: "contract" as const, contractIds: [CONTRACT_ID] },
+  ];
+
+  const events = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 6; page++) {
+    const res = await server.getEvents(
+      cursor
+        ? { cursor, filters, limit: 100 }
+        : {
+            startLedger: Math.max(1, latest.sequence - 9_900),
+            filters,
+            limit: 100,
+          },
+    );
+    events.push(...res.events);
+    if (!res.cursor || res.cursor === cursor) break;
+    cursor = res.cursor;
+    if (!cursor) break;
+    const cursorLedger = Number(BigInt(cursor.split("-")[0]) >> 32n);
+    if (res.events.length < 100 && cursorLedger >= res.latestLedger) break;
+  }
+
+  const items: ActivityItem[] = [];
+  for (const ev of events) {
+    let type: unknown;
+    let id: unknown;
+    let amount: bigint | undefined;
+    let token: string | undefined;
+    try {
+      type = scValToNative(ev.topic[0]);
+      id = ev.topic.length > 1 ? scValToNative(ev.topic[1]) : undefined;
+      const data = scValToNative(ev.value);
+      if (data && typeof data === "object" && "amount" in data) {
+        amount = data.amount as bigint;
+      }
+      if (data && typeof data === "object" && "token" in data) {
+        token = data.token as string;
+      }
+    } catch {
+      continue;
+    }
+    if (typeof type !== "string") continue;
+    if (typeof id === "bigint" && id === splitId) {
+      if (type === "split_paid" || type === "distributed") {
+        items.push({
+          eventId: ev.id,
+          type,
+          id,
+          amount,
+          token,
+          ledger: ev.ledger,
+          txHash: ev.txHash,
+        });
+      }
+    }
+  }
+  return items.reverse().slice(0, limit);
+}
+
+
+// ---------------------------------------------------------------------------
+// Trustline checking — see trustlines.ts
+// ---------------------------------------------------------------------------
+export type {
+  TrustlineStatus,
+  RecipientTrustline,
+  TrustlineCheckResult,
+} from "./trustlines";
+export { checkTrustlines } from "./trustlines";
+
 export function recipientLabel(r: Recipient): string {
   return r.tag === "Account"
     ? shortAddress(r.values[0])
     : `split #${String(r.values[0])}`;
 }
 
+export function splitPath(id: bigint | string): string {
+  return `/split/${String(id)}`;
+}
+
 export function shortAddress(addr: string): string {
   return `${addr.slice(0, 4)}…${addr.slice(-4)}`;
 }
 
+export class ConversionError extends RangeError {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConversionError";
+  }
+}
+
 // Convert a decimal string to the smallest unit (stroops) based on token decimals
 export function toStroops(units: string, decimals: number = 7): bigint {
+  if (typeof units !== "string" || !/^\d+\.?\d*$|^\.\d+$/.test(units)) {
+    throw new ConversionError(
+      `Invalid amount: "${units}". Use a plain decimal number with no sign or exponent.`,
+    );
+  }
   const [whole, frac = ""] = units.split(".");
   const zeros = "0".repeat(decimals);
   const padded = (frac + zeros).slice(0, decimals);
@@ -201,14 +311,20 @@ export function toStroops(units: string, decimals: number = 7): bigint {
   return BigInt(whole || "0") * divisor + BigInt(padded);
 }
 
-// Convert from smallest units (stroops) to decimal string based on token decimals
+// Convert from smallest units (stroops) to decimal string based on token
+// decimals. Pure bigint math so values above 2^53 stay exact.
 export function fromStroops(stroops: bigint, decimals: number = 7): string {
-  const divisor = 10 ** decimals;
-  const whole = Number(stroops / BigInt(divisor));
-  const frac = Number(stroops % BigInt(divisor));
-  return (whole + frac / divisor).toLocaleString(undefined, {
-    maximumFractionDigits: decimals,
-  });
+  const negative = stroops < 0n;
+  const abs = negative ? -stroops : stroops;
+  const divisor = 10n ** BigInt(decimals);
+  const whole = abs / divisor;
+  const frac = abs % divisor;
+
+  const wholeStr = whole.toLocaleString(undefined);
+  const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
+  const sign = negative ? "-" : "";
+
+  return fracStr ? `${sign}${wholeStr}.${fracStr}` : `${sign}${wholeStr}`;
 }
 
 /** Format a decimal-string amount with locale-aware thousands separators. */
