@@ -13,10 +13,12 @@ import TokenPicker from "./TokenPicker";
 export default function PaySplit({
   wallet,
   splits,
+  selectedSplitId,
   onPaid,
 }: {
   wallet: string | null;
   splits: SplitView[];
+  selectedSplitId?: string;
   onPaid: () => void;
 }) {
   const { t } = useTranslation();
@@ -28,6 +30,12 @@ export default function PaySplit({
   const [message, setMessage] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
   const selected = splits.find((s) => String(s.id) === splitId);
+  useEffect(() => {
+    if (selectedSplitId !== undefined) {
+      setSplitId(selectedSplitId);
+    }
+  }, [selectedSplitId]);
+
   useEffect(() => {
     let active = true;
     setAmountError(null);
