@@ -95,7 +95,7 @@ export default function SplitList({
                   <li key={i}>
                     {r.tag === "Account" ? (
                       <>
-                        
+                        <a
                           href={`${EXPLORER}/account/${r.values[0]}`}
                           target="_blank"
                           rel="noreferrer"
