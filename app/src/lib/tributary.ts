@@ -301,14 +301,20 @@ export function toStroops(units: string, decimals: number = 7): bigint {
   return BigInt(whole || "0") * divisor + BigInt(padded);
 }
 
-// Convert from smallest units (stroops) to decimal string based on token decimals
+// Convert from smallest units (stroops) to decimal string based on token
+// decimals. Pure bigint math so values above 2^53 stay exact.
 export function fromStroops(stroops: bigint, decimals: number = 7): string {
-  const divisor = 10 ** decimals;
-  const whole = Number(stroops / BigInt(divisor));
-  const frac = Number(stroops % BigInt(divisor));
-  return (whole + frac / divisor).toLocaleString(undefined, {
-    maximumFractionDigits: decimals,
-  });
+  const negative = stroops < 0n;
+  const abs = negative ? -stroops : stroops;
+  const divisor = 10n ** BigInt(decimals);
+  const whole = abs / divisor;
+  const frac = abs % divisor;
+
+  const wholeStr = whole.toLocaleString(undefined);
+  const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
+  const sign = negative ? "-" : "";
+
+  return fracStr ? `${sign}${wholeStr}.${fracStr}` : `${sign}${wholeStr}`;
 }
 
 /** Format a decimal-string amount with locale-aware thousands separators. */
