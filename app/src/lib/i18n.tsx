@@ -122,6 +122,13 @@ const translations = {
     activityControlMoved: "control moved",
     activityTx: "tx",
     activitySplitNum: "split #{id}",
+    // FeeHint
+    estimatedFee: "Estimated fee",
+    estimatedDepositFee: "Estimated deposit fee",
+    estimatedDistributeFee: "Estimated distribute fee",
+    estimatedUpdateFee: "Estimated update fee",
+    estimatedTransferFee: "Estimated transfer fee",
+    estimatedLockFee: "Estimated lock fee",
     // Footer
     contractOnTestnet: "Contract on testnet",
   },
@@ -225,6 +232,13 @@ const translations = {
     activityControlMoved: "đã chuyển quyền",
     activityTx: "tx",
     activitySplitNum: "danh sách chia #{id}",
+    // FeeHint
+    estimatedFee: "Phí ước tính",
+    estimatedDepositFee: "Phí ký quỹ ước tính",
+    estimatedDistributeFee: "Phí phân phối ước tính",
+    estimatedUpdateFee: "Phí cập nhật ước tính",
+    estimatedTransferFee: "Phí chuyển quyền ước tính",
+    estimatedLockFee: "Phí khóa ước tính",
     // Footer
     contractOnTestnet: "Hợp đồng trên testnet",
   },
