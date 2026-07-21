@@ -266,16 +266,6 @@ export async function fetchActivityForSplit(
 }
 
 
-// ---------------------------------------------------------------------------
-// Trustline checking — see trustlines.ts
-// ---------------------------------------------------------------------------
-export type {
-  TrustlineStatus,
-  RecipientTrustline,
-  TrustlineCheckResult,
-} from "./trustlines";
-export { checkTrustlines } from "./trustlines";
-
 export function recipientLabel(r: Recipient): string {
   return r.tag === "Account"
     ? shortAddress(r.values[0])
@@ -311,14 +301,17 @@ export function toStroops(units: string, decimals: number = 7): bigint {
   return BigInt(whole || "0") * divisor + BigInt(padded);
 }
 
-export function fromStroops(stroops: bigint): string {
+// Convert from smallest units (stroops) to decimal string based on token
+// decimals. Pure bigint math so values above 2^53 stay exact.
+export function fromStroops(stroops: bigint, decimals: number = 7): string {
   const negative = stroops < 0n;
   const abs = negative ? -stroops : stroops;
-  const whole = abs / 10_000_000n;
-  const frac = abs % 10_000_000n;
+  const divisor = 10n ** BigInt(decimals);
+  const whole = abs / divisor;
+  const frac = abs % divisor;
 
   const wholeStr = whole.toLocaleString(undefined);
-  const fracStr = frac.toString().padStart(7, "0").replace(/0+$/, "");
+  const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
   const sign = negative ? "-" : "";
 
   return fracStr ? `${sign}${wholeStr}.${fracStr}` : `${sign}${wholeStr}`;
