@@ -6,22 +6,14 @@ import {
   previewPayout,
   recipientLabel,
   checkTrustlines,
+  shortAddress,
   TOKENS,
   SplitView,
+  TrustlineCheckResult,
 } from "../lib/tributary";
 import { useTranslation } from "../lib/i18n";
 import TokenPicker from "./TokenPicker";
 import Tooltip from "./Tooltip";
-
-type TrustlineWarning = {
-  status: "no_trustline" | "inconclusive";
-  recipient?: string;
-};
-
-type TrustlineResult = {
-  warnings: TrustlineWarning[];
-  hasErrors: boolean;
-};
 
 export default function PaySplit({
   wallet,
@@ -42,8 +34,10 @@ export default function PaySplit({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
-  const [trustlineResult, setTrustlineResult] = useState<TrustlineResult | null>(null);
+  const [trustlineResult, setTrustlineResult] =
+    useState<TrustlineCheckResult | null>(null);
   const [trustlineChecking, setTrustlineChecking] = useState(false);
+  // Debounce timer ref so rapid token/split changes don't fire multiple RPC calls
   const trustlineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selected = splits.find((s) => String(s.id) === splitId);
@@ -172,20 +166,6 @@ export default function PaySplit({
       </div>
       {amountError && <p className="note">{amountError}</p>}
       {trustlineChecking && <p className="note">{t("checkingTrustlines")}</p>}
-      {blockingWarnings.length > 0 && (
-        <ul className="note warning">
-          {blockingWarnings.map((w, i) => (
-            <li key={i}>{t("noTrustlineWarning", { recipient: w.recipient ?? "" })}</li>
-          ))}
-        </ul>
-      )}
-      {inconclusiveWarnings.length > 0 && (
-        <ul className="note">
-          {inconclusiveWarnings.map((w, i) => (
-            <li key={i}>{t("trustlineCheckInconclusive", { recipient: w.recipient ?? "" })}</li>
-          ))}
-        </ul>
-      )}
       {selected && preview.length === selected.recipients.length && (
         <div className="preview">
           <div className="preview-heading">
@@ -204,7 +184,41 @@ export default function PaySplit({
           </ul>
         </div>
       )}
-      <button disabled={busy || !!amountError || hasBlockingWarnings} onClick={submit}>
+
+      {/* Trustline warnings — shown once a split and token are both chosen */}
+      {selected && !trustlineChecking && blockingWarnings.length > 0 && (
+        <div className="note trustline-warn" role="alert">
+          <strong>{t("trustlineWarningTitle", { token: token.code })}</strong>
+          <ul>
+            {blockingWarnings.map((w) => (
+              <li key={w.address}>
+                {t("trustlineWarningItem", {
+                  address: shortAddress(w.address),
+                  token: token.code,
+                })}
+              </li>
+            ))}
+          </ul>
+          <span>{t("trustlineWarningHint")}</span>
+        </div>
+      )}
+      {selected && !trustlineChecking && inconclusiveWarnings.length > 0 && (
+        <div className="note trustline-notice" role="status">
+          <strong>{t("trustlineNoticeTitle")}</strong>
+          <ul>
+            {inconclusiveWarnings.map((w) => (
+              <li key={w.address}>{shortAddress(w.address)}</li>
+            ))}
+          </ul>
+          <span>{t("trustlineNoticeHint")}</span>
+        </div>
+      )}
+
+      <button
+        disabled={busy || !!amountError || hasBlockingWarnings}
+        onClick={submit}
+      >
+        {busy && <span className="btn-spinner" />}
         {busy ? t("waitingForSignature") : t("payButton")}
       </button>
       {message && <p className="note">{message}</p>}
