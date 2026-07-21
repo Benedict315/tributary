@@ -141,7 +141,8 @@ export default function PaySplit({
     <section className="card">
       <h2>{t("payTitle")}</h2>
       <div className="row">
-        <select value={splitId} onChange={(e) => setSplitId(e.target.value)}>
+        <label htmlFor="split-select" className="visually-hidden">{t("chooseSplit")}</label>
+        <select id="split-select" value={splitId} onChange={(e) => setSplitId(e.target.value)}>
           <option value="">{t("chooseSplit")}</option>
           {splits.map((s) => (
             <option key={String(s.id)} value={String(s.id)}>
@@ -151,7 +152,9 @@ export default function PaySplit({
         </select>
       </div>
       <div className="row">
+        <label htmlFor="amount-input" className="visually-hidden">{t("amount")}</label>
         <input
+          id="amount-input"
           type="number"
           min="0"
           step={1 / 10 ** token.decimals}
