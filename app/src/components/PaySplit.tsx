@@ -41,7 +41,6 @@ export default function PaySplit({
   const trustlineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selected = splits.find((s) => String(s.id) === splitId);
-
   useEffect(() => {
     if (selectedSplitId !== undefined) {
       setSplitId(selectedSplitId);
@@ -138,7 +137,6 @@ export default function PaySplit({
       setBusy(false);
     }
   }
-
   return (
     <section className="card">
       <h2>{t("payTitle")}</h2>
@@ -170,12 +168,8 @@ export default function PaySplit({
       {selected && preview.length === selected.recipients.length && (
         <div className="preview">
           <div className="preview-heading">
-            <span>Payout preview</span>
-            <Tooltip label="dust">
-              Dust is the tiny remainder left when a payment cannot be divided
-              exactly. It goes to the last recipient so no funds are left
-              behind.
-            </Tooltip>
+            <span>{t("payoutPreview")}</span>
+            <Tooltip label="dust">{t("dustExplainer")}</Tooltip>
           </div>
           <ul>
             {selected.recipients.map((r, i) => (

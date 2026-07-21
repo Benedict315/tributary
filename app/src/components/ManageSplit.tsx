@@ -7,6 +7,7 @@ import RecipientEditor, {
   toRecipient,
   toShares,
 } from "./RecipientEditor";
+import FeeHint from "./FeeHint";
 
 function toRows(split: SplitView): Row[] {
   return split.recipients.map((r: Recipient, i: number) => ({
@@ -122,7 +123,6 @@ export default function ManageSplit({
     });
   }
 
-
   async function lock() {
     if (!confirmLock) {
       setConfirmLock(true);
@@ -143,6 +143,37 @@ export default function ManageSplit({
     setConfirmLock(false);
   }
 
+  const updateFee = useMemo(() => {
+    if (rows.length === 0 || rowsError(rows, t)) {
+      return null;
+    }
+    return () =>
+      walletClient(wallet!).update_split({
+        id: BigInt(splitId),
+        recipients: rows.map(toRecipient),
+        shares: toShares(rows),
+      });
+  }, [rows, wallet, splitId, t]);
+
+  const transferFee = useMemo(() => {
+    if (!transferTo.trim() || !/^G[A-Z2-7]{55}$/.test(transferTo.trim())) {
+      return null;
+    }
+    return () =>
+      walletClient(wallet!).transfer_control({
+        id: BigInt(splitId),
+        new_controller: transferTo.trim(),
+      });
+  }, [transferTo, wallet, splitId]);
+
+  const lockFee = useMemo(() => {
+    return () =>
+      walletClient(wallet!).transfer_control({
+        id: BigInt(splitId),
+        new_controller: undefined,
+      });
+  }, [wallet, splitId]);
+
   return (
     <section className="card">
       <h2>{t("manageTitle")}</h2>
@@ -160,12 +191,14 @@ export default function ManageSplit({
       {splitId !== "" && (
         <>
           <RecipientEditor rows={rows} onChange={setRows} />
+          <FeeHint assemble={updateFee} labelKey="estimatedUpdateFee" />
           <div className="row">
             <button disabled={busy} onClick={update}>
               {busy && <span className="btn-spinner" />}
               {t("updateButton")}
             </button>
           </div>
+          <FeeHint assemble={transferFee} labelKey="estimatedTransferFee" />
           <div className="row">
             <label htmlFor="controller-input" className="visually-hidden">{t("placeholderController")}</label>
             <input
@@ -184,6 +217,7 @@ export default function ManageSplit({
               {confirmLock ? t("confirmLockButton") : t("lockButton")}
             </button>
           </div>
+          <FeeHint assemble={lockFee} labelKey="estimatedLockFee" />
           {confirmLock && (
             <div className="lock-confirm" role="alertdialog" aria-live="assertive">
               <p>

@@ -60,7 +60,9 @@ export default function TokenPicker({
       </select>
       {custom && (
         <>
-          <label htmlFor="token-contract" className="visually-hidden">Token contract address</label>
+          <label htmlFor="token-contract" className="visually-hidden">
+            Token contract address
+          </label>
           <input
             id="token-contract"
             placeholder="C… token contract"
@@ -68,7 +70,9 @@ export default function TokenPicker({
             onChange={(e) => setCustomAddress(e.target.value)}
             aria-label="Token contract address"
           />
-          <label htmlFor="token-decimals" className="visually-hidden">Token decimals</label>
+          <label htmlFor="token-decimals" className="visually-hidden">
+            Token decimals
+          </label>
           <input
             id="token-decimals"
             type="number"

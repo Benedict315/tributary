@@ -7,11 +7,9 @@ export interface Row {
   value: string;
   percent: string;
 }
-
 export function rowsTotal(rows: Row[]): number {
   return rows.reduce((sum, r) => sum + (parseFloat(r.percent) || 0), 0);
 }
-
 export function rowsError(
   rows: Row[],
   t?: (key: string, variables?: Record<string, string | number>) => string,
@@ -34,13 +32,11 @@ export function rowsError(
   }
   return null;
 }
-
 export function toRecipient(row: Row): Recipient {
   return row.kind === "address"
     ? { tag: "Account", values: [row.value.trim()] }
     : { tag: "Split", values: [BigInt(row.value)] };
 }
-
 export function toShares(rows: Row[]): number[] {
   return rows.map((r) => Math.round(parseFloat(r.percent) * 100));
 }
@@ -81,7 +77,6 @@ export default function RecipientEditor({
   function setRow(i: number, patch: Partial<Row>) {
     onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   }
-
   const total = rowsTotal(rows);
   const dupes = duplicateAddresses(rows);
 
