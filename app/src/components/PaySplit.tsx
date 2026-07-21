@@ -41,7 +41,6 @@ export default function PaySplit({
   const trustlineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selected = splits.find((s) => String(s.id) === splitId);
-
   useEffect(() => {
     if (selectedSplitId !== undefined) {
       setSplitId(selectedSplitId);
@@ -138,7 +137,6 @@ export default function PaySplit({
       setBusy(false);
     }
   }
-
   return (
     <section className="card">
       <h2>{t("payTitle")}</h2>

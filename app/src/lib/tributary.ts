@@ -7,6 +7,15 @@ import {
 } from "@stellar/freighter-api";
 
 export type { Recipient };
+export {
+  checkTrustlines,
+  clearTrustlineCache,
+} from "./trustlines";
+export type {
+  TrustlineStatus,
+  RecipientTrustline,
+  TrustlineCheckResult,
+} from "./trustlines";
 
 export const RPC_URL = "https://soroban-testnet.stellar.org";
 export const EXPLORER = "https://stellar.expert/explorer/testnet";
@@ -265,16 +274,6 @@ export async function fetchActivityForSplit(
   return items.reverse().slice(0, limit);
 }
 
-
-// ---------------------------------------------------------------------------
-// Trustline checking — see trustlines.ts
-// ---------------------------------------------------------------------------
-export type {
-  TrustlineStatus,
-  RecipientTrustline,
-  TrustlineCheckResult,
-} from "./trustlines";
-export { checkTrustlines } from "./trustlines";
 
 export function recipientLabel(r: Recipient): string {
   return r.tag === "Account"
